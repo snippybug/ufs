@@ -3,8 +3,10 @@
 GCC = gcc
 FLAGS = -m32
 
-fsformat: fsformat.c fs.h
-	$(GCC) $(FLAGS) -o $@ $<
+all: terminal
 
-terminal: terminal.c
-	$(GCC) $(FLAGS) -o $@ $<
+fsformat: fsformat.c 
+	$(GCC) $(FLAGS) -o $@ $^
+
+terminal: terminal.c file.c
+	$(GCC) $(FLAGS) -o $@ $^

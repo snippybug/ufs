@@ -4,9 +4,17 @@
 
 #include <signal.h>
 #include <termios.h>
+#include <stdlib.h>
+
+#include "fsinfo.h"
+#include "file.h"
+#include "common.h"
 
 int mon_help(int argc, char **argv);
 int mon_exit(int argc, char **argv);
+int mon_ls(int argc, char **argv);
+int mon_create(int argc, char **argv);
+int mon_mkdir(int argc, char **argv);
 
 #define BUFLEN 1024
 #define WHITESPACE "\t\r\n "
@@ -21,9 +29,15 @@ struct Command{
 	int (*func)(int argc, char **argv);
 };
 
+struct ufs_entry_info wd;
+
 static struct Command commands[]={
 	{ "help", "Display this list of commands", mon_help },
-	{ "exit", "Exit the monitor", mon_exit }
+	{ "exit", "Exit the monitor", mon_exit },
+	{ "ls", "List the current directory", mon_ls},
+	{ "create", "Create a file", mon_create},
+	{ "mkdir", "Create a directory", mon_mkdir}
+
 };
 
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
@@ -149,9 +163,9 @@ int main(){
 	char *buf;
 	int r;
 
-	buf = readline("User name: ");
-	buf = getpass("Password: ");
-	printf("passwd=%s\n", buf);
+//	buf = readline("User name: ");
+//	buf = getpass("Password: ");
+//	printf("passwd=%s\n", buf);
 
 	printf("Welcome to the UFS file system monitor!\n");
 	printf("Type 'help' for a list of commands.\n");
@@ -175,4 +189,42 @@ int mon_help(int argc, char **argv){
 
 int mon_exit(int argc, char **argv){
 	return -1;
+}
+
+int mon_ls(int argc, char **argv){
+
+	// FIXME: A branch statement is needed here
+	assert(argc == 2);
+
+	struct ufs_entry_info *entry = readdir(argv[1]);
+	if(entry == NULL){
+		fputc('\n', stderr);
+		return 0;
+	}
+	struct ufs_entry_info *temp;
+	while(entry){
+		if(entry->file_type == FDIR)	// 目录项在名字后面加上/
+			printf("%s/ ", entry->name);
+		else
+			printf("%s ", entry->name);
+		temp = entry;
+		entry = entry->next;
+		free(temp);			// readdir只负责分配
+	}
+	putchar('\n');
+	return 0;
+}
+
+int mon_create(int argc, char **argv){
+	assert(argc == 2);
+
+	createfile(argv[1]);
+	return 0;
+}
+
+int mon_mkdir(int argc, char **argv){
+	assert(argc == 2);
+
+	createdir(argv[1]);
+	return 0;
 }
