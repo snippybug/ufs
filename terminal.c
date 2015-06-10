@@ -15,6 +15,7 @@ int mon_exit(int argc, char **argv);
 int mon_ls(int argc, char **argv);
 int mon_create(int argc, char **argv);
 int mon_mkdir(int argc, char **argv);
+int mon_cd(int argc, char **argv);
 
 #define BUFLEN 1024
 #define WHITESPACE "\t\r\n "
@@ -29,14 +30,13 @@ struct Command{
 	int (*func)(int argc, char **argv);
 };
 
-struct ufs_entry_info wd;
-
 static struct Command commands[]={
 	{ "help", "Display this list of commands", mon_help },
 	{ "exit", "Exit the monitor", mon_exit },
 	{ "ls", "List the current directory", mon_ls},
 	{ "create", "Create a file", mon_create},
-	{ "mkdir", "Create a directory", mon_mkdir}
+	{ "mkdir", "Create a directory", mon_mkdir},
+	{ "cd", "Change working directory", mon_cd }
 
 };
 
@@ -163,9 +163,13 @@ int main(){
 	char *buf;
 	int r;
 
+	if(initfs() < 0){
+		printf("Can't initialize the FS, Please check and retry\n");
+		return -1;
+	}
+
 //	buf = readline("User name: ");
 //	buf = getpass("Password: ");
-//	printf("passwd=%s\n", buf);
 
 	printf("Welcome to the UFS file system monitor!\n");
 	printf("Type 'help' for a list of commands.\n");
@@ -176,6 +180,7 @@ int main(){
 			if(runcmd(buf) < 0)
 				break;
 	}
+	return 0;
 }
 
 int mon_help(int argc, char **argv){
@@ -192,11 +197,13 @@ int mon_exit(int argc, char **argv){
 }
 
 int mon_ls(int argc, char **argv){
-
-	// FIXME: A branch statement is needed here
-	assert(argc == 2);
-
-	struct ufs_entry_info *entry = readdir(argv[1]);
+	char *path;
+	if(argc == 1){
+		path = NULL;
+	}else{
+		path = argv[1];
+	}
+	struct ufs_entry_info *entry = readdir(path);
 	if(entry == NULL){
 		fputc('\n', stderr);
 		return 0;
@@ -218,13 +225,19 @@ int mon_ls(int argc, char **argv){
 int mon_create(int argc, char **argv){
 	assert(argc == 2);
 
-	createfile(argv[1]);
+	ufs_create(argv[1], FREG);
 	return 0;
 }
 
 int mon_mkdir(int argc, char **argv){
 	assert(argc == 2);
 
-	createdir(argv[1]);
+	ufs_create(argv[1], FDIR);
 	return 0;
+}
+
+int mon_cd(int argc, char **argv){
+	assert(argc == 2);
+	
+	ufs_cd(argv[1]);
 }

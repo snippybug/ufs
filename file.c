@@ -5,10 +5,11 @@
 #include <string.h>
 #include <stdio.h>
 
-struct ufs_super_block sb;
+struct ufs_super_block sb;	// 超级块
+struct ufs_dir_entry wd;		// 当前工作目录
 
 #define DISK "fs.img"
-
+#define MAX_PATH_LEN 256 
 // 如果byte的第bit位是1,则返回1,否则返回0
 int testbit(char byte, char bit){
 	assert(bit < 8);
@@ -135,15 +136,29 @@ out:
 	return i*32+j*4+k;
 }
 
-void readsuper(struct ufs_super_block *psb){
+
+int readsuper(struct ufs_super_block *psb){
 	int r;
 	FILE *disk = fopen(DISK, "r");
-	assert(disk);		// FIXME
+	if(disk==NULL){
+		perror("readsuper: fopen fails ");
+		return -1;
+	}
 	r=fseek(disk, BLKSIZE, SEEK_SET);
-	assert(r==0);		// FIXME
+	if(r != 0){
+		perror("readsuper: fseek fails ");
+		return -1;
+	}
 	r = fread(psb, sizeof(struct ufs_super_block), 1, disk);
-	assert(r == 1);		// FIXME
-	assert(psb->s_magic == FS_MAGIC);
+	if(r != 1){
+		perror("readsuper: fread fails ");
+		return -1;
+	}
+	if(psb->s_magic != FS_MAGIC){
+		fprintf(stderr, "readsuper: Unknown filesystem type, expected %x\n", FS_MAGIC);
+		return -1;
+	}
+	return 0;
 	fclose(disk);
 }
 
@@ -195,18 +210,88 @@ int writeinode(int num, struct ufs_innode *pi){
 	return 0;
 }
 
+// 返回路径的最后一个目录项
+int walkdir(char *path, struct ufs_dir_entry *pe){
+	assert(path);
+
+	struct ufs_dir_entry dir;
+	if(path[0] == '/')
+		dir = sb.s_root;	// 绝对路径从根目录开始
+	else
+		dir = wd;		// 相对路径从工作目录开始
+
+	char *name = strtok(path, "/");
+	int ret = 0;
+	assert(pe);
+	while(name != NULL){
+		printf("walkdir: name=%s\n", name);
+		// 寻找下一级目录
+		u32 num = dir.inode;
+		struct ufs_innode inode;
+		readinode(num, &inode);
+		int n = inode.i_blocks;
+		int i=0;
+		int found=0;
+		printf("walkdir: n=%d\n", n);
+		while(i<n){
+			struct ufs_dir_entry *entry;
+			int over = 0;
+			u32 *bptr = readblk(inode.i_block[i]);
+			u32 *ptr = bptr;
+			while((ptr - bptr) < BLKSIZE/4){
+				entry = (struct ufs_dir_entry *)ptr;
+				if(entry->rec_len != 0){
+					printf("walkdir: found an entry, name=%s, rec_len=%d\n", entry->name, entry->rec_len);
+					if(strcmp(entry->name, name) == 0){
+						dir = *entry;
+						over = 1;
+						found = 1;
+						break;
+					}else{
+						ptr += entry->rec_len / 4;
+					}
+				}else{
+					over = 1;
+					break;
+				}
+			}
+			if(over) break;
+			i++;
+		}
+		if(!found){
+			printf("walkdir: Not found!\n");
+			ret = -1;
+			goto out;
+		}
+		name = strtok(NULL, "/");
+	}
+out:
+	*pe = dir;
+	return ret;
+}
+
 // readdir获取的内存由调用者释放
 // 1. 读取超级块，获得根目录inode
 // 2. 根据根目录inode，遍历所有数据块
-// FIXME: 只能处理根目录
-struct ufs_entry_info* readdir(char *dir){
-	readsuper(&sb);
-	u32 num = sb.s_root.inode;
-	struct ufs_innode rootinode;
+struct ufs_entry_info* readdir(char *path){
+
+	struct ufs_dir_entry dir;
+	int r;
+	if(path == NULL){
+		dir = wd;
+	}else{
+		r = walkdir(path, &dir);
+		assert(r==0);
+	}
+
+	assert(dir.file_type == FDIR);
+
+	u32 num = dir.inode;
+	struct ufs_innode inode;
 	// 1.
-	readinode(num, &rootinode);
+	readinode(num, &inode);
 	// 2.
-	int n = rootinode.i_blocks;	// n表示目录项的数据块个数
+	int n = inode.i_blocks;	// n表示目录项的数据块个数
 	int i;
 	struct ufs_entry_info *elist=NULL;
 	i = 0;
@@ -214,9 +299,9 @@ struct ufs_entry_info* readdir(char *dir){
 		// 读取数据块
 		struct ufs_dir_entry *entry;
 		int over = 0;
-		u32 *bptr = readblk(rootinode.i_block[i]);
+		u32 *bptr = readblk(inode.i_block[i]);
 		u32 *ptr = bptr;
-		while((ptr - bptr) < BLKSIZE){
+		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
 			if(entry->rec_len != 0){
 				struct ufs_entry_info *ut = (struct ufs_entry_info *)malloc(sizeof(struct ufs_entry_info));
@@ -241,18 +326,35 @@ struct ufs_entry_info* readdir(char *dir){
 // 2. 如果根目录的数据块还有位置，分配结构与inode
 // 3. 否则报错
 // FIXME: 没有检查文件的重名
-int createfile(char *name){
-	readsuper(&sb);
-	u32 num = sb.s_root.inode;
-	struct ufs_innode rootinode;
-	readinode(num, &rootinode);
-	int n = rootinode.i_blocks;
+int ufs_create(char *path, int type){
+	assert(type == FREG || type == FDIR);
+	int r;
+	struct ufs_dir_entry dir;
+
+	char tpath[MAX_PATH_LEN];
+	strncpy(tpath, path, MAX_PATH_LEN);		// walkdir会改变path
+	r = walkdir(path, &dir);
+	assert(r==-1);			// 一定会失败
+	if(tpath[strlen(tpath)-1] == '/')
+		tpath[strlen(tpath)-1] = 0;
+	char *name = strrchr(tpath, '/');
+	if(name==NULL){			// 当输入当前目录的文件或目录时，可能不含/
+		name = tpath;
+	}else{
+		name++;
+	}
+	printf("ufs_create: file name=%s\n", name);
+
+	u32 num = dir.inode;
+	struct ufs_innode inode;
+	readinode(num, &inode);
+	int n = inode.i_blocks;
 	int i=0;
 	struct ufs_dir_entry *entry;
 	u32 *bptr;
 	while(i<n){
 		int found = 0;
-		bptr = readblk(rootinode.i_block[i]);
+		bptr = readblk(inode.i_block[i]);
 		u32 *ptr = bptr;
 		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
@@ -269,65 +371,41 @@ int createfile(char *name){
 	assert(i < n || n < NFS_N_BLOCKS);
 	if(i == n && n < NFS_N_BLOCKS){		// 需要分配新的数据块
 		i = allocblk();
-		rootinode.i_block[rootinode.i_blocks++] = i;
-		writeinode(num, &rootinode);
+		inode.i_block[inode.i_blocks++] = i;
+		writeinode(num, &inode);
 		bptr = readblk(i);
 		entry = (struct ufs_dir_entry *)bptr;
 	}else{
-		i = rootinode.i_block[i];
+		i = inode.i_block[i];
 	}
-	entry->file_type = FREG;
+	entry->file_type = type;
 	entry->inode = allocinode();
 	strcpy(entry->name, name);
-	entry->name_len = strlen(name);
+	entry->name_len = strlen(name)+1;	// 保留串尾结束符
 	entry->rec_len = REC_LEN(*entry);
 	
 	writeblk((char *)bptr, i);		// i保存inode结构的块号
 	return 0;
 }
 
-// 除了文件类型，其余的和createfile一样(包括FIXME)
-int createdir(char *name){
-	readsuper(&sb);
-	u32 num = sb.s_root.inode;
-	struct ufs_innode rootinode;
-	readinode(num, &rootinode);
-	int n = rootinode.i_blocks;
-	int i=0;
-	struct ufs_dir_entry *entry;
-	u32 *bptr;
-	while(i<n){
-		int found = 0;
-		bptr = readblk(rootinode.i_block[i]);
-		u32 *ptr = bptr;
-		while((ptr - bptr) < BLKSIZE/4){
-			entry = (struct ufs_dir_entry *)ptr;
-			if(entry->rec_len == 0){
-				// FIXME: 没有检查越界
-				found = 1;
-				break;
-			}
-			ptr += (entry->rec_len) / 4;
-		}
-		if(found) break;
-		i++;
-	}
-	assert(i < n || n < NFS_N_BLOCKS);
-	if(i == n && n < NFS_N_BLOCKS){		// 需要分配新的数据块
-		i = allocblk();
-		rootinode.i_block[rootinode.i_blocks++] = i;
-		writeinode(num, &rootinode);
-		bptr = readblk(i);
-		entry = (struct ufs_dir_entry *)bptr;
-	}else{
-		i = rootinode.i_block[i];
-	}
-	entry->file_type = FDIR;
-	entry->inode = allocinode();
-	strcpy(entry->name, name);
-	entry->name_len = strlen(name);
-	entry->rec_len = REC_LEN(*entry);
-	
-	writeblk((char *)bptr, i);		// i保存inode结构的块号
+// 读取超级块并缓存在内存中
+// 初始化当前工作目录
+int initfs(){
+	int r;
+	if((r = readsuper(&sb)) < 0)
+		return r;
+	wd = sb.s_root;
+	return 0;
+}
+
+// 获取路径的目录结构，然后将其复制到wd
+int ufs_cd(char *path){
+	assert(path);
+
+	int r;
+	struct ufs_dir_entry dir;
+	r = walkdir(path, &dir);
+	assert(r==0);
+	wd = dir;
 	return 0;
 }
