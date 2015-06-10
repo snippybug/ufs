@@ -16,6 +16,10 @@ int mon_ls(int argc, char **argv);
 int mon_create(int argc, char **argv);
 int mon_mkdir(int argc, char **argv);
 int mon_cd(int argc, char **argv);
+int mon_rmdir(int argc, char **argv);
+int mon_rm(int argc, char **argv);
+int mon_read(int argc, char **argv);
+int mon_write(int argc, char **argv);
 
 #define BUFLEN 1024
 #define WHITESPACE "\t\r\n "
@@ -36,7 +40,11 @@ static struct Command commands[]={
 	{ "ls", "List the current directory", mon_ls},
 	{ "create", "Create a file", mon_create},
 	{ "mkdir", "Create a directory", mon_mkdir},
-	{ "cd", "Change working directory", mon_cd }
+	{ "cd", "Change working directory", mon_cd },
+	{ "rmdir", "Remove an empty directory", mon_rmdir },
+	{ "rm", "Remove a file", mon_rm },
+	{ "read", "Read some bytes from the file", mon_read },
+	{ "write", "Write some bytes to the file", mon_write }
 
 };
 
@@ -240,4 +248,34 @@ int mon_cd(int argc, char **argv){
 	assert(argc == 2);
 	
 	ufs_cd(argv[1]);
+	return 0;
+}
+
+int mon_rm(int argc, char **argv){
+	assert(argc == 2);
+	ufs_rm(argv[1], FREG);
+	return 0;
+}
+
+int mon_rmdir(int argc, char **argv){
+	assert(argc == 2);
+	ufs_rm(argv[1], FDIR);
+	return 0;
+}
+
+int mon_read(int argc, char **argv){
+	char buf[256];
+	assert(argc == 3);
+	int n = atoi(argv[2]);
+	assert(n < 255);
+	ufs_read(argv[1], n, buf);
+	buf[n] = 0;
+	printf("read: %s\n", buf);
+	return 0;
+}
+
+int mon_write(int argc, char **argv){
+	assert(argc == 3);
+	ufs_write(argv[1], strlen(argv[2]), argv[2]);
+	return 0;
 }

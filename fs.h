@@ -13,10 +13,11 @@
 #define INODESIZE 64
 #define FS_MAGIC 0x756673
 
-#define REC_LEN(entry) (ROUNDUP((sizeof((entry).inode)+sizeof((entry).rec_len)+sizeof((entry).name_len)+sizeof((entry).file_type)+(entry).name_len), 4))
+#define REC_LEN(entry) (ROUNDUP((sizeof((entry).inode)+sizeof((entry).rec_len)+sizeof((entry).name_len)+sizeof((entry).file_type)+(entry).name_len+(sizeof(entry).pinode)), 4))
 
 struct ufs_dir_entry{
 	u32 inode;		// 索引节点号
+	u32 pinode;		// 父节点索引节点号
 	u16 rec_len;		// 目录项的长度，一定是4的倍数
 	u8 name_len;		// 文件名长度
 	u8 file_type;		// 文件类型

@@ -68,6 +68,7 @@ opendisk(const char *name){
 	strcpy(super->s_root.name, "/");
 	super->s_root.name_len = 4;
 	super->s_root.inode = 0;
+	super->s_root.pinode = 0;
 	super->s_root.rec_len=REC_LEN(super->s_root);
 	super->s_inodes_count = ninodes;
 	super->s_inode_size = INODESIZE;

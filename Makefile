@@ -8,7 +8,7 @@ FLAGS += -g
 endif
 
 
-all: terminal
+all: terminal fsformat
 
 fsformat: fsformat.c 
 	$(GCC) $(FLAGS) -o $@ $^

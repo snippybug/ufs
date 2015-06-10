@@ -17,7 +17,7 @@ int testbit(char byte, char bit){
 	return (byte & (1 << bit));
 }
 
-u32* readblk(int num){
+char* readblk(int num){
 	static char buf[BLKSIZE];
 	int r;
 
@@ -28,7 +28,7 @@ u32* readblk(int num){
 	r = fread(buf, BLKSIZE, 1, disk);
 	assert(r==1);
 	fclose(disk);
-	return (u32 *)buf;
+	return buf;
 }
 
 int writeblk(char *buf, int num){
@@ -40,6 +40,52 @@ int writeblk(char *buf, int num){
 	assert(r==0);
 	r = fwrite(buf, BLKSIZE, 1, disk);
 	assert(r==1);
+	fclose(disk);
+	return 0;
+}
+
+int freeblk(int num){
+	int r;
+	FILE *disk = fopen(DISK, "r+");
+	assert(disk);
+	int size = ROUNDUP(sb.s_nblocks/8, BLKSIZE);
+	u32 *blkbitmap = malloc(size);
+	r = fseek(disk, sb.s_block_bitmap*BLKSIZE, SEEK_SET);
+	assert(r==0);
+	r = fread(blkbitmap, size, 1, disk);
+	assert(r==1);
+	assert((blkbitmap[num/32] & (1<<(num%32))) == 0);		// 0表示已分配
+	blkbitmap[num/32] |= 1<<(num%32);
+
+	r = fseek(disk, sb.s_block_bitmap*BLKSIZE, SEEK_SET);
+	assert(r==0);
+	r = fwrite(blkbitmap, size, 1, disk);
+	assert(r==1);
+
+	free(blkbitmap);
+	fclose(disk);
+	return 0;
+}
+
+int freeinode(int num){
+	int r;
+	FILE *disk = fopen(DISK, "r+");
+	assert(disk);
+	int size = ROUNDUP(sb.s_inodes_count/8, BLKSIZE);
+	u32 *inodebitmap = malloc(size);
+	assert(inodebitmap);
+	r = fseek(disk, sb.s_inode_bitmap*BLKSIZE, SEEK_SET);
+	assert(r == 0);
+	r = fread(inodebitmap, size, 1, disk);
+	assert(r == 1);
+	assert((inodebitmap[num/32] & (1 << (num%32))) == 0);
+	inodebitmap[num/32] |= 1 << (num%32);
+
+	r = fseek(disk, sb.s_inode_bitmap*BLKSIZE, SEEK_SET);
+	assert(r==0);
+	r = fwrite(inodebitmap, size, 1, disk);
+	assert(r==1);
+	free(inodebitmap);
 	fclose(disk);
 	return 0;
 }
@@ -89,7 +135,7 @@ out:
 	assert(r==0);
 	r = fread(inodetable, size, 1, disk);
 	assert(r==1);
-	table[index].i_mode = 1;
+	memset(&table[index], 0, sizeof(struct ufs_innode));	// 防止文件信息错误
 	r = fseek(disk, sb.s_inode_table*BLKSIZE, SEEK_SET);
 	assert(r==0);
 	r = fwrite(inodetable, size, 1, disk);
@@ -213,6 +259,7 @@ int writeinode(int num, struct ufs_innode *pi){
 // 返回路径的最后一个目录项
 int walkdir(char *path, struct ufs_dir_entry *pe){
 	assert(path);
+	assert(pe);
 
 	struct ufs_dir_entry dir;
 	if(path[0] == '/')
@@ -222,7 +269,6 @@ int walkdir(char *path, struct ufs_dir_entry *pe){
 
 	char *name = strtok(path, "/");
 	int ret = 0;
-	assert(pe);
 	while(name != NULL){
 		printf("walkdir: name=%s\n", name);
 		// 寻找下一级目录
@@ -236,7 +282,7 @@ int walkdir(char *path, struct ufs_dir_entry *pe){
 		while(i<n){
 			struct ufs_dir_entry *entry;
 			int over = 0;
-			u32 *bptr = readblk(inode.i_block[i]);
+			u32 *bptr = (u32 *)readblk(inode.i_block[i]);
 			u32 *ptr = bptr;
 			while((ptr - bptr) < BLKSIZE/4){
 				entry = (struct ufs_dir_entry *)ptr;
@@ -299,7 +345,7 @@ struct ufs_entry_info* readdir(char *path){
 		// 读取数据块
 		struct ufs_dir_entry *entry;
 		int over = 0;
-		u32 *bptr = readblk(inode.i_block[i]);
+		u32 *bptr = (u32 *)readblk(inode.i_block[i]);
 		u32 *ptr = bptr;
 		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
@@ -354,7 +400,7 @@ int ufs_create(char *path, int type){
 	u32 *bptr;
 	while(i<n){
 		int found = 0;
-		bptr = readblk(inode.i_block[i]);
+		bptr = (u32 *)readblk(inode.i_block[i]);
 		u32 *ptr = bptr;
 		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
@@ -373,13 +419,14 @@ int ufs_create(char *path, int type){
 		i = allocblk();
 		inode.i_block[inode.i_blocks++] = i;
 		writeinode(num, &inode);
-		bptr = readblk(i);
+		bptr = (u32 *)readblk(i);
 		entry = (struct ufs_dir_entry *)bptr;
 	}else{
 		i = inode.i_block[i];
 	}
 	entry->file_type = type;
 	entry->inode = allocinode();
+	entry->pinode = dir.inode;
 	strcpy(entry->name, name);
 	entry->name_len = strlen(name)+1;	// 保留串尾结束符
 	entry->rec_len = REC_LEN(*entry);
@@ -407,5 +454,158 @@ int ufs_cd(char *path){
 	r = walkdir(path, &dir);
 	assert(r==0);
 	wd = dir;
+	return 0;
+}
+
+// 删除索引号为num的目录中的项name
+int rmentry(int num, char *name){
+	struct ufs_innode inode;
+	readinode(num, &inode);
+	int i, n;
+	n = inode.i_blocks;
+	assert(n != 0);
+	i=0;
+	printf("rmentry: inode %d, file=%s\n", num, name);
+	while(i<n){
+		// 读取数据块
+		struct ufs_dir_entry *entry;
+		int over = 0;
+		u32 *bptr = (u32*)readblk(inode.i_block[i]);
+		u32 *ptr = bptr;
+		while((ptr - bptr) < BLKSIZE/4){
+			entry = (struct ufs_dir_entry *)ptr;
+			printf("entry->name=%s\n", entry->name);
+			if(strcmp(name, entry->name) == 0){
+				// 当前块内，所有文件向前移动
+				// entry保存着起始指针
+				u32 *temp = ptr;
+				u32 *temp2 = ptr + entry->rec_len / 4;
+				struct ufs_dir_entry *dtemp = (struct ufs_dir_entry *)temp2;
+				while((temp2 - bptr) < BLKSIZE / 4){
+					int off = dtemp->rec_len;
+					printf("rmentry: off=%d\n", off);
+					if(off != 0){
+						memmove(temp, temp2, off);
+					}else{
+						break;
+					}
+					temp += off / 4;
+					temp2 += off / 4;
+					dtemp = (struct ufs_dir_entry *)temp2;
+				}
+				if(temp2 == (ptr + entry->rec_len / 4)){		// 该目录的最后一个文件
+					printf("rmentry: Notice, the last file is removed\n");
+					freeblk(inode.i_block[i]);
+					inode.i_block[i] = 0;
+					inode.i_blocks--;
+					writeinode(num, &inode);
+				}else{
+					// 清除多余的数据，并将数据块写回
+					memset(temp, 0, (temp2-temp)*4);
+					writeblk((char *)bptr, inode.i_block[i]);
+				}
+				over = 1;
+				break;
+			}else{
+				ptr += entry->rec_len / 4;
+			}
+		}
+		if(over) break;
+		i++;
+	}
+}
+
+// 删除步骤：
+// 1. 如果有数据块，释放所有的数据块
+// 2. 释放inode
+// 3. 在父目录的数据块中删除记录项
+// FIXME: 万一是根目录怎么办?
+int ufs_rm(char *path, int type){
+	assert(path);
+	assert(type == FREG || type == FDIR);
+	int r;
+	struct ufs_dir_entry entry;
+	r = walkdir(path, &entry);
+	assert(r==0);
+	assert(type == entry.file_type);
+	struct ufs_innode inode;
+	readinode(entry.inode, &inode);
+	if(type == FDIR){
+		assert(inode.i_blocks==0);		// 只允许删除空目录
+	}else{
+		if(inode.i_blocks != 0){
+			int i;
+			for(i=0;i<inode.i_blocks;i++){
+				printf("ufs_rm: free block %d\n", inode.i_block[i]);
+				freeblk(inode.i_block[i]);
+				inode.i_block[i] = 0;
+			}
+		}
+	}
+	freeinode(entry.inode);
+	rmentry(entry.pinode, entry.name);
+	return 0;
+}
+
+int ufs_read(char *path, int n, char *buf){
+	assert(buf);
+	int r;
+	struct ufs_dir_entry entry;
+	r = walkdir(path, &entry);
+	assert(r==0);
+	assert(entry.file_type == FREG);		// 只支持普通文件读写
+	struct ufs_innode inode;
+	readinode(entry.inode, &inode);
+
+	buf[0] = 0;
+	int count = (n < inode.i_size) ? n : inode.i_size;	// count代表实际读取的字节数
+	printf("ufs_read: count=%d\n", count);
+	while(count){
+		int i = 0;		// i代表当前的数据块号
+		int t = 0;		// t是数据存储指针
+		int temp = (count / BLKSIZE) ? BLKSIZE : count;
+		
+		memmove(&buf[t], readblk(inode.i_block[i]), temp);
+		printf("ufs_read: read from block %d\n", inode.i_block[i]);
+		t += temp;
+		count -= temp;
+		i++;
+	}
+	return 0;
+}
+
+int ufs_write(char *path, int n, char *buf){
+	assert(buf);
+	printf("ufs_write: n=%d\n", n);
+	int r;
+	struct ufs_dir_entry entry;
+	r = walkdir(path, &entry);
+	assert(r==0);
+	assert(entry.file_type == FREG);
+	struct ufs_innode inode;
+	readinode(entry.inode, &inode);
+	inode.i_size = n;
+
+	while(n){
+		int i = 0;
+		int t = 0;
+		int temp = (n / BLKSIZE) ? BLKSIZE : n;
+		char *block;
+
+		if(inode.i_block[i] == 0){		// 需要重新分配
+			inode.i_block[i] = allocblk();
+			inode.i_blocks++;
+			printf("ufs_write: new block %d\n", inode.i_block[i]);
+		}
+		printf("ufs_write: temp=%d\n", temp);
+		block = readblk(inode.i_block[i]);
+		memmove(block, &buf[t], temp);
+		writeblk(block, inode.i_block[i]);
+		t += temp;
+		n -= temp;
+		i++;
+	}
+
+	writeinode(entry.inode, &inode);
 	return 0;
 }
