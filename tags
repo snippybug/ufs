@@ -1,0 +1,152 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+BLKBITSIZE	fs.h	12;"	d
+BLKSIZE	fs.h	11;"	d
+BUFLEN	terminal.c	24;"	d	file:
+COMMON_H	common.h	2;"	d
+Command	terminal.c	/^struct Command{$/;"	s	file:
+DISK	file.c	11;"	d	file:
+FBLOCKDEV	common.h	/^	FCHARDEV, FBLOCKDEV, FPIPE,$/;"	e	enum:FTYPE
+FCHARDEV	common.h	/^	FCHARDEV, FBLOCKDEV, FPIPE,$/;"	e	enum:FTYPE
+FDIR	common.h	/^	FUNKNOWN, FREG, FDIR,$/;"	e	enum:FTYPE
+FILE_H	file.h	4;"	d
+FLAGS	Makefile	/^FLAGS = -m32$/;"	m
+FLINK	common.h	/^	FSOCKET, FLINK$/;"	e	enum:FTYPE
+FPIPE	common.h	/^	FCHARDEV, FBLOCKDEV, FPIPE,$/;"	e	enum:FTYPE
+FREG	common.h	/^	FUNKNOWN, FREG, FDIR,$/;"	e	enum:FTYPE
+FSINFO_H	fsinfo.h	4;"	d
+FSOCKET	common.h	/^	FSOCKET, FLINK$/;"	e	enum:FTYPE
+FS_H	fs.h	4;"	d
+FS_MAGIC	fs.h	14;"	d
+FTYPE	common.h	/^enum FTYPE{$/;"	g
+FUNKNOWN	common.h	/^	FUNKNOWN, FREG, FDIR,$/;"	e	enum:FTYPE
+GCC	Makefile	/^GCC = gcc$/;"	m
+INODESIZE	fs.h	13;"	d
+MAXARGS	terminal.c	26;"	d	file:
+MAX_DIR_ENTS	fsformat.c	16;"	d	file:
+MAX_PASS_LEN	terminal.c	27;"	d	file:
+MAX_PATH_LEN	file.c	12;"	d	file:
+NCOMMANDS	terminal.c	51;"	d	file:
+NFS_NAME_LEN	common.h	6;"	d
+NFS_N_BLOCKS	fs.h	9;"	d
+REC_LEN	fs.h	16;"	d
+ROUNDUP	common.h	13;"	d
+TYPE_H	type.h	3;"	d
+WHITESPACE	terminal.c	25;"	d	file:
+alloc	fsformat.c	/^alloc(u32 bytes){$/;"	f
+allocblk	file.c	/^int allocblk(){$/;"	f
+allocinode	file.c	/^int allocinode(){$/;"	f
+bitmap	fsformat.c	/^u32 *bitmap,*inodebitmap, *inodemap;$/;"	v
+blockof	fsformat.c	/^u32 blockof(void *pos){$/;"	f
+buf	terminal.c	/^static char buf[BUFLEN];$/;"	v	file:
+commands	terminal.c	/^static struct Command commands[]={$/;"	v	typeref:struct:Command	file:
+desc	terminal.c	/^	const char *desc;$/;"	m	struct:Command	file:
+diskmap	fsformat.c	/^char *diskmap, *diskpos;$/;"	v
+diskpos	fsformat.c	/^char *diskmap, *diskpos;$/;"	v
+file_type	fs.h	/^	u8 file_type;		\/\/ 文件类型$/;"	m	struct:ufs_dir_entry
+file_type	fsinfo.h	/^	u8 file_type;		\/\/ 文件类型$/;"	m	struct:ufs_entry_info
+finishdisk	fsformat.c	/^finishdisk(){$/;"	f
+freeblk	file.c	/^int freeblk(int num){$/;"	f
+freeinode	file.c	/^int freeinode(int num){$/;"	f
+func	terminal.c	/^	int (*func)(int argc, char **argv);$/;"	m	struct:Command	file:
+getpass	terminal.c	/^getpass(const char *prompt){$/;"	f
+i_atime	fs.h	/^	u32 i_atime;		\/\/ 最后一次访问文件的时间$/;"	m	struct:ufs_innode
+i_atime	fsinfo.h	/^	u32 i_atime;		\/\/ 最后一次访问文件的时间$/;"	m	struct:ufs_inode_info
+i_block	fs.h	/^	u32 i_block[NFS_N_BLOCKS];	\/\/ 指向数据块的指针$/;"	m	struct:ufs_innode
+i_blocks	fs.h	/^	u32 i_blocks;		\/\/ 文件的数据块数$/;"	m	struct:ufs_innode
+i_blocks	fsinfo.h	/^	u32 i_blocks;		\/\/ 文件的数据块数$/;"	m	struct:ufs_inode_info
+i_ctime	fs.h	/^	u32 i_ctime;		\/\/ 索引节点最后改变的时间$/;"	m	struct:ufs_innode
+i_ctime	fsinfo.h	/^	u32 i_ctime;		\/\/ 索引节点最后改变的时间$/;"	m	struct:ufs_inode_info
+i_flags	fs.h	/^	u16 i_flags;		\/\/ 文件标志$/;"	m	struct:ufs_innode
+i_flags	fsinfo.h	/^	u16 i_flags;		\/\/ 文件标志$/;"	m	struct:ufs_inode_info
+i_gid	fs.h	/^	u16 i_gid;		\/\/ 用户的组标识符$/;"	m	struct:ufs_innode
+i_gid	fsinfo.h	/^	u16 i_gid;		\/\/ 用户的组标识符$/;"	m	struct:ufs_inode_info
+i_links_count	fs.h	/^	u16 i_links_count;	\/\/ 硬链接计数器$/;"	m	struct:ufs_innode
+i_links_count	fsinfo.h	/^	u16 i_links_count;	\/\/ 硬链接计数器$/;"	m	struct:ufs_inode_info
+i_mode	fs.h	/^	u16 i_mode;		\/\/ 文件类型和访问权限$/;"	m	struct:ufs_innode
+i_mode	fsinfo.h	/^	u16 i_mode;		\/\/ 文件类型和访问权限$/;"	m	struct:ufs_inode_info
+i_mtime	fs.h	/^	u32 i_mtime;		\/\/ 文件内容最后改变的时间$/;"	m	struct:ufs_innode
+i_mtime	fsinfo.h	/^	u32 i_mtime;		\/\/ 文件内容最后改变的时间$/;"	m	struct:ufs_inode_info
+i_size	fs.h	/^	u32 i_size;		\/\/ 以字节为单位的文件长度$/;"	m	struct:ufs_innode
+i_size	fsinfo.h	/^	u32 i_size;		\/\/ 以字节为单位的文件长度$/;"	m	struct:ufs_inode_info
+i_uid	fs.h	/^	u16 i_uid;			\/\/ 拥有者标识$/;"	m	struct:ufs_innode
+i_uid	fsinfo.h	/^	u16 i_uid;			\/\/ 拥有者标识$/;"	m	struct:ufs_inode_info
+idtime	fs.h	/^	u32 idtime;		\/\/ 文件删除的时间$/;"	m	struct:ufs_innode
+idtime	fsinfo.h	/^	u32 idtime;		\/\/ 文件删除的时间$/;"	m	struct:ufs_inode_info
+initfs	file.c	/^int initfs(){$/;"	f
+inode	fs.h	/^	u32 inode;		\/\/ 索引节点号$/;"	m	struct:ufs_dir_entry
+inodebitmap	fsformat.c	/^u32 *bitmap,*inodebitmap, *inodemap;$/;"	v
+inodemap	fsformat.c	/^u32 *bitmap,*inodebitmap, *inodemap;$/;"	v
+main	fsformat.c	/^main(int argc, char **argv){$/;"	f
+main	terminal.c	/^main(int argc, char **argv){$/;"	f
+mon_cd	terminal.c	/^int mon_cd(int argc, char **argv){$/;"	f
+mon_create	terminal.c	/^int mon_create(int argc, char **argv){$/;"	f
+mon_exit	terminal.c	/^int mon_exit(int argc, char **argv){$/;"	f
+mon_help	terminal.c	/^int mon_help(int argc, char **argv){$/;"	f
+mon_ls	terminal.c	/^mon_ls(int argc, char **argv){$/;"	f
+mon_mkdir	terminal.c	/^int mon_mkdir(int argc, char **argv){$/;"	f
+mon_read	terminal.c	/^int mon_read(int argc, char **argv){$/;"	f
+mon_rm	terminal.c	/^int mon_rm(int argc, char **argv){$/;"	f
+mon_rmdir	terminal.c	/^int mon_rmdir(int argc, char **argv){$/;"	f
+mon_write	terminal.c	/^int mon_write(int argc, char **argv){$/;"	f
+name	fs.h	/^	char name[NFS_NAME_LEN];	\/\/ 文件名$/;"	m	struct:ufs_dir_entry
+name	fsinfo.h	/^	char name[NFS_NAME_LEN];	\/\/ 文件名$/;"	m	struct:ufs_entry_info
+name	terminal.c	/^	const char *name;$/;"	m	struct:Command	file:
+name_len	fs.h	/^	u8 name_len;		\/\/ 文件名长度$/;"	m	struct:ufs_dir_entry
+nblocks	fsformat.c	/^u32 nblocks, ninodes;$/;"	v
+next	fsinfo.h	/^	struct ufs_entry_info *next;$/;"	m	struct:ufs_entry_info	typeref:struct:ufs_entry_info::ufs_entry_info
+ninodes	fsformat.c	/^u32 nblocks, ninodes;$/;"	v
+opendisk	fsformat.c	/^opendisk(const char *name){$/;"	f
+padding	fs.h	/^	u8 padding[INODESIZE-38];	\/\/ 凑够2的整数倍$/;"	m	struct:ufs_innode
+panic	fsformat.c	/^panic(const char*fmt, ...){$/;"	f
+pinode	fs.h	/^	u32 pinode;		\/\/ 父节点索引节点号$/;"	m	struct:ufs_dir_entry
+readblk	file.c	/^char* readblk(int num){$/;"	f
+readdir	file.c	/^readdir(char *path){$/;"	f
+readinode	file.c	/^int readinode(int num, struct ufs_innode *pinode){$/;"	f
+readline	terminal.c	/^readline(const char *prompt){$/;"	f
+readsuper	file.c	/^int readsuper(struct ufs_super_block *psb){$/;"	f
+rec_len	fs.h	/^	u16 rec_len;		\/\/ 目录项的长度，一定是4的倍数$/;"	m	struct:ufs_dir_entry
+rmentry	file.c	/^int rmentry(int num, char *name){$/;"	f
+runcmd	terminal.c	/^runcmd(char *buf){$/;"	f	file:
+s_block_bitmap	fs.h	/^	u32 s_block_bitmap;	\/\/ 块位图的块号$/;"	m	struct:ufs_super_block
+s_block_bitmap	fsinfo.h	/^	u32 s_block_bitmap;	\/\/ 块位图的块号$/;"	m	struct:ufs_sb_info
+s_inode_bitmap	fs.h	/^	u32 s_inode_bitmap;	\/\/ 索引节点位图的块号$/;"	m	struct:ufs_super_block
+s_inode_bitmap	fsinfo.h	/^	u32 s_inode_bitmap;	\/\/ 索引节点位图的块号$/;"	m	struct:ufs_sb_info
+s_inode_size	fs.h	/^	u16 s_inode_size;	\/\/ 磁盘上索引节点结构的大小$/;"	m	struct:ufs_super_block
+s_inode_size	fsinfo.h	/^	u16 s_inode_size;	\/\/ 磁盘上索引节点结构的大小$/;"	m	struct:ufs_sb_info
+s_inode_table	fs.h	/^	u32 s_inode_table;	\/\/ 第一个索引节点表块的块号$/;"	m	struct:ufs_super_block
+s_inode_table	fsinfo.h	/^	u32 s_inode_table;	\/\/ 第一个索引节点表块的块号$/;"	m	struct:ufs_sb_info
+s_inodes_count	fs.h	/^	u32 s_inodes_count;	\/\/ 索引结点数$/;"	m	struct:ufs_super_block
+s_inodes_count	fsinfo.h	/^	u32 s_inodes_count;	\/\/ 索引结点数$/;"	m	struct:ufs_sb_info
+s_log_block_size	fs.h	/^	u32 s_log_block_size;	\/\/ 块的大小$/;"	m	struct:ufs_super_block
+s_log_block_size	fsinfo.h	/^	u32 s_log_block_size;	\/\/ 块的大小$/;"	m	struct:ufs_sb_info
+s_magic	fs.h	/^	u32 s_magic;		\/\/ Magic number: FS_MAGIC$/;"	m	struct:ufs_super_block
+s_nblocks	fs.h	/^	u32 s_nblocks;		\/\/ Total number of blocks on disk$/;"	m	struct:ufs_super_block
+s_nblocks	fsinfo.h	/^	u32 s_nblocks;		\/\/ Total number of blocks on disk$/;"	m	struct:ufs_sb_info
+s_root	fs.h	/^	struct ufs_dir_entry s_root;		\/\/ Root directory node$/;"	m	struct:ufs_super_block	typeref:struct:ufs_super_block::ufs_dir_entry
+sb	file.c	/^struct ufs_super_block sb;	\/\/ 超级块$/;"	v	typeref:struct:ufs_super_block
+super	fsformat.c	/^struct ufs_super_block *super;$/;"	v	typeref:struct:ufs_super_block
+testbit	file.c	/^int testbit(char byte, char bit){$/;"	f
+u16	type.h	/^typedef short unsigned int u16;$/;"	t
+u32	type.h	/^typedef unsigned int u32;$/;"	t
+u8	type.h	/^typedef unsigned char u8;$/;"	t
+ufs_cd	file.c	/^int ufs_cd(char *path){$/;"	f
+ufs_create	file.c	/^ufs_create(char *path, int type){$/;"	f
+ufs_dir_entry	fs.h	/^struct ufs_dir_entry{$/;"	s
+ufs_entry_info	fsinfo.h	/^struct ufs_entry_info{$/;"	s
+ufs_innode	fs.h	/^struct ufs_innode{$/;"	s
+ufs_inode_info	fsinfo.h	/^struct ufs_inode_info{$/;"	s
+ufs_read	file.c	/^int ufs_read(char *path, int n, char *buf){$/;"	f
+ufs_rm	file.c	/^int ufs_rm(char *path, int type){$/;"	f
+ufs_sb_info	fsinfo.h	/^struct ufs_sb_info{$/;"	s
+ufs_super_block	fs.h	/^struct ufs_super_block{$/;"	s
+ufs_write	file.c	/^ufs_write(char *path, int n, char *buf){$/;"	f
+usage	fsformat.c	/^usage(void){$/;"	f
+walkdir	file.c	/^walkdir(char *path, struct ufs_dir_entry *pe){$/;"	f
+wd	file.c	/^struct ufs_dir_entry wd;		\/\/ 当前工作目录$/;"	v	typeref:struct:ufs_dir_entry
+writeblk	file.c	/^int writeblk(char *buf, int num){$/;"	f
+writeinode	file.c	/^int writeinode(int num, struct ufs_innode *pi){$/;"	f

@@ -10,7 +10,7 @@
 
 #define BLKSIZE 1024
 #define BLKBITSIZE (BLKSIZE * 8)
-#define INODESIZE 64
+#define INODESIZE 128
 #define FS_MAGIC 0x756673
 
 #define REC_LEN(entry) (ROUNDUP((sizeof((entry).inode)+sizeof((entry).rec_len)+sizeof((entry).name_len)+sizeof((entry).file_type)+(entry).name_len+(sizeof(entry).pinode)), 4))
@@ -22,7 +22,7 @@ struct ufs_dir_entry{
 	u8 name_len;		// 文件名长度
 	u8 file_type;		// 文件类型
 	char name[NFS_NAME_LEN];	// 文件名
-};
+}__attribute__((packed));
 
 struct ufs_super_block{
 	u32 s_magic;		// Magic number: FS_MAGIC
@@ -35,7 +35,7 @@ struct ufs_super_block{
 	u32 s_inode_bitmap;	// 索引节点位图的块号
 	u32 s_inode_table;	// 第一个索引节点表块的块号
 	struct ufs_dir_entry s_root;		// Root directory node
-};
+}__attribute__((packed));
 
 struct ufs_innode{
 	u16 i_mode;		// 文件类型和访问权限
@@ -50,7 +50,7 @@ struct ufs_innode{
 	u32 i_blocks;		// 文件的数据块数
 	u16 i_flags;		// 文件标志
 	u32 i_block[NFS_N_BLOCKS];	// 指向数据块的指针
-	u8 padding[INODESIZE-38];	// 凑够2的整数倍
-};
+	u8 padding[INODESIZE-94];	// 凑够2的整数倍
+}__attribute__((packed));
 
 #endif

@@ -91,7 +91,8 @@ int freeinode(int num){
 }
 
 // 分配索引节点
-int allocinode(){
+int 
+allocinode(){
 	int r;
 	FILE *disk = fopen(DISK, "r+");
 	assert(disk);		// FIXME
@@ -104,13 +105,15 @@ int allocinode(){
 	assert(r == 1);
 	// 寻找空闲位
 	int i,j,k;
-	for(i=0;i<size/4;i++){
+	fprintf(stderr, "allocinode: size=%d\n", size);
+	for(i=0;i<sb.s_inodes_count/32;i++){
 		if(inodebitmap[i] != 0){
 			char *p = (char *)&inodebitmap[i];
 			for(j=0;j<4;j++){
 				if(p[j] != 0){
 					for(k=0;k<8;k++){
 						if(testbit(p[j], k)){
+							fprintf(stderr,"allocinode, i=%d,j=%d,k=%d\n", i,j,k);
 							p[j] &= ~(1<<k);
 							goto out;
 						}
@@ -120,7 +123,7 @@ int allocinode(){
 		}
 	}
 out:
-	assert(i<size/4);
+	assert(i<sb.s_inodes_count/32);
 	r = fseek(disk, sb.s_inode_bitmap*BLKSIZE, SEEK_SET);
 	assert(r==0);
 	r = fwrite(inodebitmap, size, 1, disk);
@@ -129,7 +132,7 @@ out:
 
 	size = ROUNDUP(sb.s_inode_size*sb.s_inodes_count, BLKSIZE);
 	u32* inodetable = malloc(size);
-	int index = i*32 + j*4 + k;			// 计算位置
+	int index = i*32 + j*8 + k;			// 计算位置
 	struct ufs_innode *table = (struct ufs_innode *)inodetable;
 	r = fseek(disk, sb.s_inode_table*BLKSIZE, SEEK_SET);
 	assert(r==0);
@@ -140,11 +143,15 @@ out:
 	assert(r==0);
 	r = fwrite(inodetable, size, 1, disk);
 	assert(r==1);
-	fclose(disk);
+
+	free(inodetable);
+	r = fclose(disk);
+	assert(r == 0);
 	return index;
 }
 
-int allocblk(){
+int 
+allocblk(){
 	int r;
 	FILE *disk = fopen(DISK, "r+");
 	assert(disk);
@@ -155,7 +162,7 @@ int allocblk(){
 	r = fread(blkbitmap, size, 1, disk);
 	assert(r==1);
 	int i,j,k;
-	for(i=0;i<size/4;i++){
+	for(i=0;i<sb.s_nblocks/32;i++){
 		if(blkbitmap[i] != 0){
 			char *p = (char *)&blkbitmap[i];
 			for(j=0;j<4;j++){
@@ -171,7 +178,7 @@ int allocblk(){
 		}
 	}
 out:
-	assert(i<size/4);
+	assert(i<sb.s_nblocks/32);
 	r = fseek(disk, sb.s_block_bitmap*BLKSIZE, SEEK_SET);
 	assert(r==0);
 	r = fwrite(blkbitmap, size, 1, disk);
@@ -179,7 +186,8 @@ out:
 
 	free(blkbitmap);
 	fclose(disk);
-	return i*32+j*4+k;
+	fprintf(stderr, "allocblk: i=%d, j=%d, k=%d, ret=%d\n", i, j, k, i*32+j*8+k);
+	return i*32+j*8+k;
 }
 
 
@@ -204,8 +212,8 @@ int readsuper(struct ufs_super_block *psb){
 		fprintf(stderr, "readsuper: Unknown filesystem type, expected %x\n", FS_MAGIC);
 		return -1;
 	}
-	return 0;
 	fclose(disk);
+	return 0;
 }
 
 // 根据索引节点号，读取索引节点结构
@@ -257,7 +265,8 @@ int writeinode(int num, struct ufs_innode *pi){
 }
 
 // 返回路径的最后一个目录项
-int walkdir(char *path, struct ufs_dir_entry *pe){
+int 
+walkdir(char *path, struct ufs_dir_entry *pe){
 	assert(path);
 	assert(pe);
 
@@ -269,25 +278,26 @@ int walkdir(char *path, struct ufs_dir_entry *pe){
 
 	char *name = strtok(path, "/");
 	int ret = 0;
+	struct ufs_innode inode;
 	while(name != NULL){
-		printf("walkdir: name=%s\n", name);
+		fprintf(stderr,"walkdir: name=%s\n", name);
 		// 寻找下一级目录
 		u32 num = dir.inode;
-		struct ufs_innode inode;
 		readinode(num, &inode);
 		int n = inode.i_blocks;
 		int i=0;
 		int found=0;
-		printf("walkdir: n=%d\n", n);
+		fprintf(stderr, "walkdir: n=%d\n", n);
 		while(i<n){
 			struct ufs_dir_entry *entry;
 			int over = 0;
+			fprintf(stderr, "walkdir: readblk %d\n", inode.i_block[i]);
 			u32 *bptr = (u32 *)readblk(inode.i_block[i]);
 			u32 *ptr = bptr;
 			while((ptr - bptr) < BLKSIZE/4){
 				entry = (struct ufs_dir_entry *)ptr;
 				if(entry->rec_len != 0){
-					printf("walkdir: found an entry, name=%s, rec_len=%d\n", entry->name, entry->rec_len);
+					fprintf(stderr, "walkdir: found an entry, name=%s, rec_len=%d\n", entry->name, entry->rec_len);
 					if(strcmp(entry->name, name) == 0){
 						dir = *entry;
 						over = 1;
@@ -297,6 +307,7 @@ int walkdir(char *path, struct ufs_dir_entry *pe){
 						ptr += entry->rec_len / 4;
 					}
 				}else{
+					fprintf(stderr, "walkdir: reach end because entry->rec_len == 0\n");
 					over = 1;
 					break;
 				}
@@ -305,7 +316,7 @@ int walkdir(char *path, struct ufs_dir_entry *pe){
 			i++;
 		}
 		if(!found){
-			printf("walkdir: Not found!\n");
+			fprintf(stderr, "walkdir: Not found!\n");
 			ret = -1;
 			goto out;
 		}
@@ -319,7 +330,8 @@ out:
 // readdir获取的内存由调用者释放
 // 1. 读取超级块，获得根目录inode
 // 2. 根据根目录inode，遍历所有数据块
-struct ufs_entry_info* readdir(char *path){
+struct ufs_entry_info* 
+readdir(char *path){
 
 	struct ufs_dir_entry dir;
 	int r;
@@ -371,8 +383,8 @@ struct ufs_entry_info* readdir(char *path){
 // 1. 读入超级块，找出根目录
 // 2. 如果根目录的数据块还有位置，分配结构与inode
 // 3. 否则报错
-// FIXME: 没有检查文件的重名
-int ufs_create(char *path, int type){
+int 
+ufs_create(char *path, int type){
 	assert(type == FREG || type == FDIR);
 	int r;
 	struct ufs_dir_entry dir;
@@ -389,7 +401,7 @@ int ufs_create(char *path, int type){
 	}else{
 		name++;
 	}
-	printf("ufs_create: file name=%s\n", name);
+	fprintf(stderr, "ufs_create: file name=%s\n", name);
 
 	u32 num = dir.inode;
 	struct ufs_innode inode;
@@ -400,13 +412,13 @@ int ufs_create(char *path, int type){
 	u32 *bptr;
 	while(i<n){
 		int found = 0;
+		fprintf(stderr, "ufs_create: readblk %d\n", inode.i_block[i]);
 		bptr = (u32 *)readblk(inode.i_block[i]);
 		u32 *ptr = bptr;
 		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
 			if(entry->rec_len == 0){
-				// FIXME: 没有检查越界
-				found = 1;
+				found = 1;	// 找到空位
 				break;
 			}
 			ptr += (entry->rec_len) / 4;
@@ -416,13 +428,16 @@ int ufs_create(char *path, int type){
 	}
 	assert(i < n || n < NFS_N_BLOCKS);
 	if(i == n && n < NFS_N_BLOCKS){		// 需要分配新的数据块
+		fprintf(stderr, "ufs_create: Need a new block, index=%d\n", i);
 		i = allocblk();
 		inode.i_block[inode.i_blocks++] = i;
 		writeinode(num, &inode);
 		bptr = (u32 *)readblk(i);
 		entry = (struct ufs_dir_entry *)bptr;
 	}else{
+		fprintf(stderr, "ufs_create: Use an existed block, index=%d", i);
 		i = inode.i_block[i];
+		fprintf(stderr, ", num=%d\n", i);
 	}
 	entry->file_type = type;
 	entry->inode = allocinode();
@@ -465,7 +480,7 @@ int rmentry(int num, char *name){
 	n = inode.i_blocks;
 	assert(n != 0);
 	i=0;
-	printf("rmentry: inode %d, file=%s\n", num, name);
+	fprintf(stderr, "rmentry: inode %d, file=%s\n", num, name);
 	while(i<n){
 		// 读取数据块
 		struct ufs_dir_entry *entry;
@@ -474,7 +489,7 @@ int rmentry(int num, char *name){
 		u32 *ptr = bptr;
 		while((ptr - bptr) < BLKSIZE/4){
 			entry = (struct ufs_dir_entry *)ptr;
-			printf("entry->name=%s\n", entry->name);
+			fprintf(stderr, "entry->name=%s\n", entry->name);
 			if(strcmp(name, entry->name) == 0){
 				// 当前块内，所有文件向前移动
 				// entry保存着起始指针
@@ -483,7 +498,7 @@ int rmentry(int num, char *name){
 				struct ufs_dir_entry *dtemp = (struct ufs_dir_entry *)temp2;
 				while((temp2 - bptr) < BLKSIZE / 4){
 					int off = dtemp->rec_len;
-					printf("rmentry: off=%d\n", off);
+					fprintf(stderr, "rmentry: off=%d\n", off);
 					if(off != 0){
 						memmove(temp, temp2, off);
 					}else{
@@ -493,8 +508,8 @@ int rmentry(int num, char *name){
 					temp2 += off / 4;
 					dtemp = (struct ufs_dir_entry *)temp2;
 				}
-				if(temp2 == (ptr + entry->rec_len / 4)){		// 该目录的最后一个文件
-					printf("rmentry: Notice, the last file is removed\n");
+				if(temp2 == (bptr + entry->rec_len / 4)){		// 该目录的最后一个文件
+					fprintf(stderr, "rmentry: Notice, the last file is removed\n");
 					freeblk(inode.i_block[i]);
 					inode.i_block[i] = 0;
 					inode.i_blocks--;
@@ -536,7 +551,7 @@ int ufs_rm(char *path, int type){
 		if(inode.i_blocks != 0){
 			int i;
 			for(i=0;i<inode.i_blocks;i++){
-				printf("ufs_rm: free block %d\n", inode.i_block[i]);
+				fprintf(stderr, "ufs_rm: free block %d\n", inode.i_block[i]);
 				freeblk(inode.i_block[i]);
 				inode.i_block[i] = 0;
 			}
@@ -559,14 +574,14 @@ int ufs_read(char *path, int n, char *buf){
 
 	buf[0] = 0;
 	int count = (n < inode.i_size) ? n : inode.i_size;	// count代表实际读取的字节数
-	printf("ufs_read: count=%d\n", count);
+	fprintf(stderr, "ufs_read: count=%d\n", count);
 	while(count){
 		int i = 0;		// i代表当前的数据块号
 		int t = 0;		// t是数据存储指针
 		int temp = (count / BLKSIZE) ? BLKSIZE : count;
 		
 		memmove(&buf[t], readblk(inode.i_block[i]), temp);
-		printf("ufs_read: read from block %d\n", inode.i_block[i]);
+		fprintf(stderr, "ufs_read: read from block %d\n", inode.i_block[i]);
 		t += temp;
 		count -= temp;
 		i++;
@@ -574,9 +589,10 @@ int ufs_read(char *path, int n, char *buf){
 	return 0;
 }
 
-int ufs_write(char *path, int n, char *buf){
+int 
+ufs_write(char *path, int n, char *buf){
 	assert(buf);
-	printf("ufs_write: n=%d\n", n);
+	fprintf(stderr, "ufs_write: n=%d\n", n);
 	int r;
 	struct ufs_dir_entry entry;
 	r = walkdir(path, &entry);
@@ -595,9 +611,9 @@ int ufs_write(char *path, int n, char *buf){
 		if(inode.i_block[i] == 0){		// 需要重新分配
 			inode.i_block[i] = allocblk();
 			inode.i_blocks++;
-			printf("ufs_write: new block %d\n", inode.i_block[i]);
+			fprintf(stderr, "ufs_write: new block %d\n", inode.i_block[i]);
 		}
-		printf("ufs_write: temp=%d\n", temp);
+		fprintf(stderr, "ufs_write: temp=%d\n", temp);
 		block = readblk(inode.i_block[i]);
 		memmove(block, &buf[t], temp);
 		writeblk(block, inode.i_block[i]);

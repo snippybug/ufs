@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <termios.h>
 #include <stdlib.h>
+#include <mcheck.h>
 
 #include "fsinfo.h"
 #include "file.h"
@@ -107,22 +108,24 @@ readline(const char *prompt){
 	int i, c, echoing;
 	
 	if(prompt != NULL)
-		printf("%s", prompt);
+		fprintf(stderr, "%s", prompt);
 
 	i=0;
 	while(1){
 		c = getchar();
-		if(c < 0){
+		if(c == EOF){
+			return NULL;
+		}else if(c < 0){
 			fprintf(stderr, "read error: %s\n", strerror(errno));
 			return NULL;
 		}else if((c == '\b' || c == '\x7f') && i > 0){
-		//	putchar('\b');
+			fputc('\b', stderr);
 			i--;
 		}else if(c >= ' ' && i < BUFLEN-1){
-		//	putchar(c);
+			fputc(c, stderr);
 			buf[i++] = c;
 		}else if(c == '\n' || c == '\r'){
-		//	putchar('\n');
+			fputc('\n', stderr);
 			buf[i] = 0;
 			return buf;
 		}
@@ -167,10 +170,45 @@ runcmd(char *buf){
 	return 0;
 }
 
-int main(){
+int
+main(int argc, char **argv){
 	char *buf;
 	int r;
+	char *infile=NULL;
+	FILE *fp=NULL;
 
+	setenv("MALLOC_TRACE", "meminfo", 1);
+	mtrace();
+
+	while(--argc){
+		argv++;
+		if(**argv == '?'){
+		printf("Version 1.4 (C) Wang Zonglei\n"
+		"A terminal to communicate with the UFS filesystem\n"
+		"Usage:\n"
+		"\tterminal [-input <file>]\n");
+		return 0;
+		}
+		if(**argv == '-'){
+			if(strcmp(++*argv, "input") == 0){
+				infile = *(++argv);
+				--argc;
+				if(infile == NULL){
+					fprintf(stderr, "Error: an input file is needed\n");
+					return -1;
+				}
+			}else{
+				fprintf(stderr, "Error: unknown argument %s\n", *argv);
+				return -1;
+			}
+		}
+	}
+	if(infile){
+		if((fp=freopen(infile, "r", stdin)) == NULL){
+			fprintf(stderr, "Error: can't redirect the stdin to file %s\n", infile);
+		return -1;
+		}
+	}
 	if(initfs() < 0){
 		printf("Can't initialize the FS, Please check and retry\n");
 		return -1;
@@ -184,9 +222,16 @@ int main(){
 	printf("Type 'exit' to exit this monitor.\n");
 	while(1){
 		buf = readline("K> ");
-		if(buf != NULL)
-			if(runcmd(buf) < 0)
+		if(buf != NULL){
+			if(runcmd(buf) < 0){
 				break;
+			}
+		}else{
+			break;
+		}
+	}
+	if(fp){
+		fclose(fp);
 	}
 	return 0;
 }
@@ -204,7 +249,8 @@ int mon_exit(int argc, char **argv){
 	return -1;
 }
 
-int mon_ls(int argc, char **argv){
+int 
+mon_ls(int argc, char **argv){
 	char *path;
 	if(argc == 1){
 		path = NULL;
@@ -219,14 +265,14 @@ int mon_ls(int argc, char **argv){
 	struct ufs_entry_info *temp;
 	while(entry){
 		if(entry->file_type == FDIR)	// 目录项在名字后面加上/
-			printf("%s/ ", entry->name);
+			fprintf(stderr, "%s/ ", entry->name);
 		else
-			printf("%s ", entry->name);
+			fprintf(stderr, "%s ", entry->name);
 		temp = entry;
 		entry = entry->next;
 		free(temp);			// readdir只负责分配
 	}
-	putchar('\n');
+	fputc('\n', stderr);
 	return 0;
 }
 

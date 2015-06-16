@@ -11,7 +11,7 @@ endif
 all: terminal fsformat
 
 fsformat: fsformat.c 
-	$(GCC) $(FLAGS) -o $@ $^
+	$(GCC) $(FLAGS) $^ -o $@ 
 
 terminal: terminal.c file.c
-	$(GCC) $(FLAGS) -o $@ $^
+	$(GCC) $(FLAGS) $^ -o $@
